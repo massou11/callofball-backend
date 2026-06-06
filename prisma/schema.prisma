@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  phone     String?
+  role      Role     @default(CLIENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reservations     Reservation[]
+  subscriptions    Subscription[]
+  campReservations CampReservation[]
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+}
+
+model Venue {
+  id          String    @id @default(cuid())
+  name        String
+  type        VenueType
+  description String?
+  capacity    Int
+  isActive    Boolean   @default(true)
+
+  slots        Slot[]
+  reservations Reservation[]
+}
+
+enum VenueType {
+  TERRAIN_5X5
+  DEMI_TERRAIN_5X5
+  TERRAIN_3X3
+  CAGE_1V1
+}
+
+model Service {
+  id          String      @id @default(cuid())
+  name        String
+  type        ServiceType
+  description String?
+  isActive    Boolean     @default(true)
+
+  pricingRules PricingRule[]
+  reservations Reservation[]
+}
+
+enum ServiceType {
+  PICKUP_GAME
+  MATCH_AMIS
+  MACHINE_SHOOT
+  ANNIVERSAIRE
+  COACHING
+  TOURNOI
+  LEAGUE
+  ACADEMY
+  CORPORATE
+  CAMP
+}
+
+model PricingRule {
+  id         String   @id @default(cuid())
+  serviceId  String
+  label      String
+  price      Float
+  unit       String
+  isOnline   Boolean  @default(true)
+  isPeakHour Boolean?
+
+  service Service @relation(fields: [serviceId], references: [id])
+}
+
+model Slot {
+  id        String   @id @default(cuid())
+  venueId   String
+  startTime DateTime
+  endTime   DateTime
+  isBooked  Boolean  @default(false)
+
+  venue       Venue        @relation(fields: [venueId], references: [id])
+  reservation Reservation?
+}
+
+model Reservation {
+  id           String            @id @default(cuid())
+  userId       String
+  venueId      String?
+  serviceId    String
+  slotId       String?           @unique
+  status       ReservationStatus @default(PENDING)
+  participants Int               @default(1)
+  totalPrice   Float
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id])
+  venue   Venue?   @relation(fields: [venueId], references: [id])
+  service Service  @relation(fields: [serviceId], references: [id])
+  slot    Slot?    @relation(fields: [slotId], references: [id])
+  payment Payment?
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  reservationId   String        @unique
+  amount          Float
+  status          PaymentStatus @default(PENDING)
+  stripePaymentId String?
+  createdAt       DateTime      @default(now())
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+model Notification {
+  id            String   @id @default(cuid())
+  type          String   // NEW_RESERVATION, COACHING_PACK, REFUND, CANCELLATION
+  title         String
+  body          String
+  reservationId String?
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model Camp {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  minAge      Int?
+  maxAge      Int?
+  price       Float
+  places      Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reservations CampReservation[]
+}
+
+model CampReservation {
+  id        String   @id @default(cuid())
+  campId    String
+  userId    String
+  status    ReservationStatus @default(PENDING)
+  notes     String?
+  createdAt DateTime @default(now())
+
+  camp Camp @relation(fields: [campId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Subscription {
+  id        String           @id @default(cuid())
+  userId    String
+  type      SubscriptionType
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean          @default(true)
+  price     Float
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum SubscriptionType {
+  ACADEMY_1J_6MOIS
+  ACADEMY_2J_6MOIS
+}
